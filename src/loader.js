@@ -29,24 +29,28 @@ const logRequestInfo = ({r, logger, args}) => {
     }
 }
 
-const chunkLoader = async ({href, host, pathname, protocol, requestOptions, fileName, progressBar, args}) => {
-    let totalBytesDownloaded = 0;
-    const timeBeforeStart = Date.now();
+const chunkLoader = async ({href, host, pathname, protocol, origin, requestOptions, fileName, progressBar, args}) => {
+    let totalBytesDownloaded = 0
+    const timeBeforeStart = Date.now()
     const speedLimit = 5000000
+    let data = ""
 
     const opts = {
         transform: async (chunk, encoding, next) => {
             // Accumulate the total number of bytes received
-            totalBytesDownloaded += chunk.byteLength;
+            totalBytesDownloaded += chunk.byteLength
 
             // Sleep to throttle towards desired transfer speed
-            const sleepMs = Math.max(0, (totalBytesDownloaded / speedLimit * 1000) - Date.now() + timeBeforeStart);
+            const sleepMs = Math.max(0, (totalBytesDownloaded / speedLimit * 1000) - Date.now() + timeBeforeStart)
             // update progress bar
             progressBar.update(totalBytesDownloaded)
-            sleepMs && await new Promise(resolve => setTimeout(resolve, sleepMs));
+            sleepMs && await new Promise(resolve => setTimeout(resolve, sleepMs))
+            if (args.flags.MIRROR) {
+                data += chunk.toString()
+            }
 
             // Propagate the chunk to the stream writable
-            next(null, chunk);
+            next(null, chunk)
         }
     }
 
@@ -59,7 +63,30 @@ const chunkLoader = async ({href, host, pathname, protocol, requestOptions, file
 
         // Save the file to disk
         fs.createWriteStream(fileName, {flags: "a"})
-    );
+    )
+
+    if (!args.flags.MIRROR) return null
+
+    const re = /(?:href|src)=(["'])(?!mailto).*?\1/gm
+    const matchedSources = data.match(re)
+    const sources = matchedSources.map(el => el.split("=").slice(1).join("=").slice(1, -1))
+    const sourcesWithUrl = sources.map(el => {
+        try {
+            const url = new URL(el)
+            if (!url.host) return null
+            return url
+        } catch (e) {
+            try {
+                return new URL(`${origin}${el}`)
+            } catch (err) {
+                return null
+            }
+        }
+    })
+        .filter(el => el !== null)
+        .map(el => el.href)
+
+    return sourcesWithUrl
 }
 
 const findPath = (path) => {
@@ -96,13 +123,14 @@ const defineRequest = ({href, host, pathname, protocol}, options = {}, resolve) 
 }
 
 const loader = async (args) => {
+    console.log({args})
     const logger = new Logger(args.flags.BACKGROUND)
 
     try {
         const {url} = args
-        const {href, host, pathname, protocol} = new URL(url)
+        const {href, host, origin, pathname, protocol} = new URL(url)
         // flag -O
-        const origFileName = args.flags.FILENAME || url.split("/").slice(-1)[0]
+        const origFileName = args.flags.FILENAME || url.split("/").slice(-1)[0] || "index.html"
         const fileName = args.flags.FILEPATH ? checkFileExistence(findPath(path.join(args.flags.FILEPATH, origFileName))) : checkFileExistence(origFileName)
 
         let data
@@ -140,11 +168,28 @@ const loader = async (args) => {
         logger.log(`saving file to: ${fileName}`)
         progressBar.init(clen)
 
-        await chunkLoader({href, host, pathname, protocol, requestOptions, fileName, progressBar, args})
+        const urls = await chunkLoader({
+            href,
+            host,
+            pathname,
+            origin,
+            protocol,
+            requestOptions,
+            fileName,
+            progressBar,
+            args
+        })
         logger.log()
         logger.log(`Downloaded [${url}]`)
         logger.log(`finished at ${formatDate(new Date())}`)
 
+        // flag mirror
+        if (urls !== null) {
+            for (const url of urls) {
+                args.url = url
+                await loader(args)
+            }
+        }
 
     } catch (err) {
         if (err.code === "ENOTFOUND") {
