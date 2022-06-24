@@ -1,0 +1,23 @@
+{
+  "name": "wget",
+  "version": "1.0.0",
+  "description": "wget functionality on nodejs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "test": "mocha src/__test__/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.01.alem.school:KRaken/wget.git"
+  },
+  "author": "KRaken",
+  "license": "ISC",
+  "dependencies": {
+    "request": "^2.88.2"
+  },
+  "devDependencies": {
+    "axios": "^0.27.2",
+    "mocha": "^10.0.0"
+  }
+}
