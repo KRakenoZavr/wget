@@ -1,6 +1,6 @@
 const fs = require("fs")
 const path = require("path")
-const {PATH, CONFIG} = require("./config")
+const { PATH, CONFIG } = require("./config")
 
 const deepEqual = (obj1, obj2) => {
     if (Object.keys(obj1).length !== Object.keys(obj2).length) return false
@@ -37,6 +37,27 @@ const checkFlags = (args) => {
     return true
 }
 
+const safeParseInt = (str) => {
+    const value = parseInt(str)
+    if (Number.isNaN(value)) {
+        console.log("Enter valid number for rate limit")
+        process.exit(0)
+    }
+    return value
+}
+
+const getLimitAsBytes = (str) => {
+    const limits = ["k", "M", "G"]
+
+    for (let i = 0; i < limits.length; i++) {
+        if (str.includes(limits[i])) {
+            const [value] = str.split(limits[i])
+            return safeParseInt(value) * (1024 ** (i + 1))
+        }
+    }
+    return safeParseInt(str)
+}
+
 const getFlags = (args) => {
     if (!checkFlags(args)) {
         console.log("Invalid flag")
@@ -68,6 +89,27 @@ const getFlags = (args) => {
         }
     }
 
+    // if mirror, only mirror and its helper flags
+    if (flags.MIRROR === true) {
+        for (const key in flags) {
+            if (key !== "REJECT" && key !== "EXCLUDE" && key !== "MIRROR") {
+                flags[key] = false
+            }
+        }
+    }
+
+    if (flags.REJECT) {
+        flags.REJECT = flags.REJECT.split(',')
+    }
+
+    if (flags.EXCLUDE) {
+        flags.EXCLUDE = flags.EXCLUDE.split(',')
+    }
+
+    if (flags.LIMIT) {
+        flags.LIMIT = getLimitAsBytes(flags.LIMIT)
+    }
+
     return flags
 }
 
@@ -87,9 +129,9 @@ const getLastNum = (filename) => {
     const lastEl = parseInt(splitted.splice(-1)[0])
 
     if (Number.isNaN(lastEl)) {
-        return `${filename}.1`
+        return `${ filename }.1`
     }
-    return `${splitted.join(".")}.${lastEl + 1}`
+    return `${ splitted.join(".") }.${ lastEl + 1 }`
 }
 
 const checkFileExistence = (fileName) => {
@@ -136,7 +178,7 @@ const getR = (bytes, last = false) => {
             i++
         }
     }
-    return `${Math.ceil(r * 100) / 100}${getObjectI(rates, i)}`
+    return `${ Math.ceil(r * 100) / 100 }${ getObjectI(rates, i) }`
 }
 
 module.exports = {

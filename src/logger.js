@@ -1,12 +1,13 @@
 const fs = require("fs")
 const path = require("path")
-const {Console} = require("console")
-const {PATH} = require("./config")
-const {checkFileExistence} = require("./utils")
+const { Console } = require("console")
+const { PATH } = require("./config")
+const { checkFileExistence } = require("./utils")
 
 class Logger {
-    constructor(isBg) {
+    constructor(isBg, silent = false) {
         this.path = "wget-log"
+        this.silent = silent
         this.logger = {}
         this.log = () => {
         }
@@ -15,6 +16,7 @@ class Logger {
     }
 
     initFsLogger() {
+        if (this.silent) return
         if (!this.isBg) {
             this.logger.log = console.log
         } else {
@@ -22,8 +24,8 @@ class Logger {
             const fullPath = path.join(PATH, fileName)
             const output = fs.createWriteStream(fullPath)
 
-            this.logger = new Console({stdout: output, stderr: output})
-            console.log(`Output will be written to ${fileName}`)
+            this.logger = new Console({ stdout: output, stderr: output })
+            console.log(`Output will be written to ${ fileName }`)
         }
         // shortcut
         this.log = this.logger.log

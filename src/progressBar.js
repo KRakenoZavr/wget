@@ -1,7 +1,8 @@
-const {getR} = require("./utils")
+const { getR } = require("./utils")
 
 class ProgressBar {
-    constructor(isBg, startDate) {
+    constructor(isBg, startDate, silent = false) {
+        this.silent = silent
         this.startDate = startDate
         this.total = 0
         this.current = 0
@@ -24,10 +25,11 @@ class ProgressBar {
     }
 
     draw(currentProgress) {
-        const speed = this.current / (new Date() - this.startDate) * 1000
+        let speed = this.current / (new Date() - this.startDate) * 1000
+        speed = Number.isNaN(speed) ? 0 : speed
 
         if (!this.total) {
-            !this.isBg && this.log(`  Current progress ${getR(this.current)}: [ <=> ] ${getR(speed)}`)
+            !this.isBg && this.log(`  Current progress ${ getR(this.current) }: [ <=> ] ${ getR(speed) }`)
             return
         }
 
@@ -41,21 +43,21 @@ class ProgressBar {
         const secondsLeft = ((this.total - this.current) / speed).toFixed(1)
 
 
-        !this.isBg && this.log(`  ${getR(this.total)} / ${getR(this.current)}: [${filledBar}${emptyBar}] ${percentageProgress}% ${getR(speed)}/s ${secondsLeft}s`)
+        !this.isBg && this.log(`  ${ getR(this.total) } / ${ getR(this.current) }: [${ filledBar }${ emptyBar }] ${ percentageProgress }% ${ getR(speed) }/s ${ secondsLeft }s`)
     }
 
     update(current) {
+        if (this.silent) return
         this.current = current
         const currentProgress = this.current / this.total
         this.draw(currentProgress)
     }
 
     init(total) {
-        console.log({total})
         this.total = total
         this.current = 0
         this.update(this.current)
     }
 }
 
-module.exports = {ProgressBar}
+module.exports = { ProgressBar }
